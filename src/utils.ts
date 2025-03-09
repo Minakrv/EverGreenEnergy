@@ -45,3 +45,45 @@ export async function fetchWeatherData(
     throw new Error("Error fetching weather data");
   }
 }
+
+export function calculatePowerHeatLoss(
+  heatLoss: number,
+  degreeDays: number
+): number {
+  if (degreeDays <= 0) {
+    throw new Error("Heating degree days must be greater than zero");
+  }
+  return heatLoss / degreeDays;
+}
+
+export function selectHeatPump(
+  heatPumps: { model: string; outputCapacity: number; cost: number }[],
+  powerHeatLoss: number
+): { model: string; outputCapacity: number; cost: number } {
+  const suitablePump = heatPumps.find(
+    (pump) => pump.outputCapacity >= powerHeatLoss
+  );
+
+  if (!suitablePump) {
+    throw new Error("No suitable heat pump found");
+  }
+
+  return suitablePump;
+}
+
+// Cost Calculation
+export function calculateTotalCost(
+    selectedPump: { model: string; outputCapacity: number; cost: number }
+  ): { totalCost: number; breakdown: { label: string; cost: number }[] } {
+    const VAT_RATE = 0.05;
+    const vatAmount = selectedPump.cost * VAT_RATE;
+    const totalCost = selectedPump.cost + vatAmount;
+  
+    return {
+      totalCost,
+      breakdown: [
+        { label: "Heat Pump Cost", cost: selectedPump.cost },
+        { label: "VAT (5%)", cost: vatAmount },
+      ],
+    };
+  }
