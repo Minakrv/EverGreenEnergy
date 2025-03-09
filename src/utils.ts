@@ -87,3 +87,28 @@ export function calculateTotalCost(
       ],
     };
   }
+
+  export function generateSummary(
+    house: { submissionId: string; designRegion: string },
+    heatLoss: number,
+    powerHeatLoss: number,
+    selectedPump: { model: string; outputCapacity: number; cost: number },
+    totalCost: number,
+    breakdown: { label: string; cost: number }[]
+  ): string {
+    const breakdownText = breakdown
+    .map((item) => `      ${item.label}, ${item.cost}`)
+    .join("\n");
+  
+    return `--------------------------------------
+  ${house.submissionId}
+  --------------------------------------
+    Estimated Heat Loss = ${heatLoss.toFixed(1)} kWh
+    Design Region = ${house.designRegion}
+    Power Heat Loss = ${powerHeatLoss.toFixed(3)} kW
+    Recommended Heat Pump = ${selectedPump.model}
+    Cost Breakdown
+${breakdownText}
+    Total Cost, including VAT = ${totalCost.toFixed(2)}
+  `;
+  }

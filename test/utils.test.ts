@@ -4,7 +4,8 @@ import {
   fetchWeatherData,
   calculatePowerHeatLoss,
   selectHeatPump,
-  calculateTotalCost
+  calculateTotalCost,
+  generateSummary
 } from "../src/utils";
 import * as path from "path";
 import axios from "axios";
@@ -153,5 +154,49 @@ describe('Heat Pump Selection', () => {
         { label: "Heat Pump Cost", cost: selectedPump.cost },
         { label: "VAT (5%)", cost: selectedPump.cost * 0.05 },
       ]);
+    });
+  });
+
+  //Test for Generating the Final Output Summary
+
+  describe("Generate Output Summary", () => {
+    test("should generate a correctly formatted summary", () => {
+      const house = {
+        submissionId: "12345",
+        floorArea: 100,
+        heatingFactor: 1.2,
+        insulationFactor: 0.8,
+        designRegion: "Borders (Boulmer)",
+      };
+  
+      const heatLoss = 100 * 1.2 * 0.8; // Precomputed
+      const powerHeatLoss = heatLoss / 2483; // Example degreeDays value
+      const selectedPump = {
+        model: "HP-2000",
+        outputCapacity: 10,
+        cost: 8000,
+      };
+      const totalCost = selectedPump.cost * 1.05; // Adding 5% VAT
+      const breakdown = [
+        { label: "Heat Pump Cost", cost: selectedPump.cost },
+        { label: "VAT (5%)", cost: selectedPump.cost * 0.05 },
+      ];
+  
+      const expectedOutput = `--------------------------------------
+  12345
+  --------------------------------------
+    Estimated Heat Loss = 96.0 kWh
+    Design Region = Borders (Boulmer)
+    Power Heat Loss = 0.039 kW
+    Recommended Heat Pump = HP-2000
+    Cost Breakdown
+      Heat Pump Cost, 8000
+      VAT (5%), 400
+    Total Cost, including VAT = 8400.00
+  `;
+  
+      const result = generateSummary(house, heatLoss, powerHeatLoss, selectedPump, totalCost, breakdown);
+  
+      expect(result).toBe(expectedOutput);
     });
   });
