@@ -1,5 +1,6 @@
-import { calculateHeatLoss, readJsonFile } from '../src/utils';
+import { calculateHeatLoss, readJsonFile, fetchWeatherData } from '../src/utils';
 import * as path from 'path';
+import axios from 'axios';
 
 //Test for Heat Loss Calculation
 describe('Heat Loss Calculation', () => {
@@ -46,3 +47,34 @@ describe('Read JSON File', () => {
 
 
 //Test for Fetching Weather Data
+jest.mock('axios'); // Mock axios to prevent real API calls
+
+describe('Fetch Weather Data', () => {
+  test('should fetch weather data successfully', async () => {
+    const mockResponse = {
+      data: {
+        location: {
+          location: 'Borders (Boulmer)',
+          degreeDays: 2483,
+          groundTemp: '9',
+          postcode: 'NE66',
+          lat: '55.424',
+          lng: '-1.583',
+        },
+      },
+    };
+
+    (axios.get as jest.Mock).mockResolvedValue(mockResponse);
+
+    const result = await fetchWeatherData('Borders (Boulmer)');
+    expect(result).toEqual({ location: 'Borders (Boulmer)', degreeDays: 2483 });
+  });
+
+  test('should handle 404 error for missing design region', async () => {
+    (axios.get as jest.Mock).mockRejectedValue({ response: { status: 404 } });
+
+    await expect(fetchWeatherData('Unknown Region')).rejects.toThrow(
+      'Error fetching weather data'
+    );
+  });
+});
