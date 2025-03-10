@@ -1,4 +1,12 @@
-import { readJsonFile, fetchWeatherData, calculateHeatLoss, calculatePowerHeatLoss, selectHeatPump, calculateTotalCost, generateSummary } from "./utils";
+import {
+  readJsonFile,
+  fetchWeatherData,
+  calculateHeatLoss,
+  calculatePowerHeatLoss,
+  selectHeatPump,
+  calculateTotalCost,
+  generateSummary,
+} from "./utils";
 import path from "path";
 
 async function run() {
@@ -22,7 +30,10 @@ async function run() {
         const weatherData = await fetchWeatherData(house.designRegion);
 
         // Step 3: Calculate Power Heat Loss
-        const powerHeatLoss = calculatePowerHeatLoss(heatLoss, weatherData.degreeDays);
+        const powerHeatLoss = calculatePowerHeatLoss(
+          heatLoss,
+          weatherData.degreeDays
+        );
 
         // Step 4: Select Suitable Heat Pump
         const selectedPump = selectHeatPump(heatPumps, powerHeatLoss);
@@ -43,19 +54,24 @@ async function run() {
         console.log(summary);
       } catch (error: unknown) {
         if (error instanceof Error) {
-            console.error(`Error processing house ${house.submissionId}:`, error.message);
-        }else {
-            console.error(`Error processing house ${house.submissionId}:`, String(error));
+          console.error(
+            `Error processing house ${house.submissionId}:`,
+            error.message
+          );
+        } else {
+          console.error(
+            `Error processing house ${house.submissionId}:`,
+            String(error)
+          );
         }
       }
     }
   } catch (error) {
     if (error instanceof Error) {
-        console.error("Failed to run process:", error.message);
+      console.error("Failed to run process:", error.message);
     } else {
-        console.error("Failed to run process:", String(error));
+      console.error("Failed to run process:", String(error));
     }
-   
   }
 }
 
