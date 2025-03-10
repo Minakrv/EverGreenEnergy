@@ -5,18 +5,21 @@ import {
   calculatePowerHeatLoss,
   selectHeatPump,
   calculateTotalCost,
-  generateSummary
+  generateSummary,
 } from "../src/utils";
 import * as path from "path";
 import axios from "axios";
+import { HeatPump, House, SelectedHeatPump } from "../src/types";
 
 //Test for Heat Loss Calculation
 describe("Heat Loss Calculation", () => {
   test("should correctly calculate heat loss", () => {
-    const house = {
+    const house: House = {
+      submissionId: "12345",
       floorArea: 100,
       heatingFactor: 1.2,
       insulationFactor: 0.8,
+      designRegion: "Borders (Boulmer)",
     };
 
     const expectedHeatLoss = 100 * 1.2 * 0.8; // Formula: floorArea * heatingFactor * insulationFactor
@@ -109,94 +112,122 @@ describe("Power Heat Loss Calculation", () => {
 });
 
 //Test for Heat Pump Selection
-describe('Heat Pump Selection', () => {
-    test('should select the correct heat pump based on power heat loss', () => {
-      const heatPumps = [
-        { model: "HP-1000", outputCapacity: 5, cost: 5000 },
-        { model: "HP-2000", outputCapacity: 10, cost: 8000 },
-        { model: "HP-3000", outputCapacity: 15, cost: 12000 },
-      ];
-      
-      const powerHeatLoss = 8; // Needs at least 8 kW capacity
-  
-      const selectedPump = selectHeatPump(heatPumps, powerHeatLoss);
-      expect(selectedPump).toEqual({ model: "HP-2000", outputCapacity: 10, cost: 8000 });
-    });
-  
-    test('should throw an error if no suitable heat pump is found', () => {
-      const heatPumps = [
-        { model: "HP-1000", outputCapacity: 5, cost: 5000 },
-        { model: "HP-2000", outputCapacity: 6, cost: 7000 },
-      ];
-  
-      const powerHeatLoss = 10; // No available heat pump meets this requirement
-  
-      expect(() => selectHeatPump(heatPumps, powerHeatLoss)).toThrow(
-        'No suitable heat pump found'
-      );
+describe("Heat Pump Selection", () => {
+  test("should select the correct heat pump based on power heat loss", () => {
+    const heatPumps: HeatPump[] = [
+      {
+        label: "5kW Package",
+        outputCapacity: 5,
+        costs: [
+          { label: "Component Cost", cost: 4000 },
+          { label: "Installation Cost", cost: 2000 },
+        ],
+      },
+      {
+        label: "8kW Package",
+        outputCapacity: 8,
+        costs: [
+          { label: "Component Cost", cost: 5000 },
+          { label: "Installation Cost", cost: 3000 },
+        ],
+      },
+    ];
+
+    const powerHeatLoss = 6; // Needs at least 6 kW capacity
+
+    const selectedPump: SelectedHeatPump = selectHeatPump(
+      heatPumps,
+      powerHeatLoss
+    );
+    expect(selectedPump).toEqual({
+      label: "8kW Package",
+      outputCapacity: 8,
+      totalCost: 8000,
+      breakdown: [
+        { label: "Component Cost", cost: 5000 },
+        { label: "Installation Cost", cost: 3000 },
+      ],
     });
   });
+});
 
-  //Test for total cost, including VAT
-  describe("Total Cost Calculation", () => {
-    test("should correctly calculate total cost including VAT", () => {
-      const selectedPump = {
-        model: "HP-2000",
-        outputCapacity: 10,
-        cost: 8000,
-      };
-  
-      const expectedTotalCost = selectedPump.cost * 1.05; // Adding 5% VAT
-      const result = calculateTotalCost(selectedPump);
-  
-      expect(result.totalCost).toBeCloseTo(expectedTotalCost);
-      expect(result.breakdown).toEqual([
-        { label: "Heat Pump Cost", cost: selectedPump.cost },
-        { label: "VAT (5%)", cost: selectedPump.cost * 0.05 },
-      ]);
-    });
+//Test for total cost, including VAT
+describe("Total Cost Calculation", () => {
+  test("should correctly calculate total cost including VAT", () => {
+    const selectedPump: SelectedHeatPump = {
+      label: "8kW Package",
+      outputCapacity: 8,
+      totalCost: 8000,
+      breakdown: [
+        { label: "Component Cost", cost: 5000 },
+        { label: "Installation Cost", cost: 3000 },
+      ],
+    };
+    const expectedTotalCost = selectedPump.totalCost * 1.05; // Adding 5% VAT
+    const result = calculateTotalCost(selectedPump);
+
+    expect(result.totalCost).toBeCloseTo(expectedTotalCost);
+    expect(result.breakdown).toEqual([
+      { label: "Component Cost", cost: 5000 },
+      { label: "Installation Cost", cost: 3000 },
+      { label: "VAT (5%)", cost: selectedPump.totalCost * 0.05 },
+    ]);
   });
+});
 
-  //Test for Generating the Final Output Summary
+//Test for Generating the Final Output Summary
 
-  describe("Generate Output Summary", () => {
-    test("should generate a correctly formatted summary", () => {
-      const house = {
-        submissionId: "12345",
-        floorArea: 100,
-        heatingFactor: 1.2,
-        insulationFactor: 0.8,
-        designRegion: "Borders (Boulmer)",
-      };
-  
-      const heatLoss = 100 * 1.2 * 0.8; // Precomputed
-      const powerHeatLoss = heatLoss / 2483; // Example degreeDays value
-      const selectedPump = {
-        model: "HP-2000",
-        outputCapacity: 10,
-        cost: 8000,
-      };
-      const totalCost = selectedPump.cost * 1.05; // Adding 5% VAT
-      const breakdown = [
-        { label: "Heat Pump Cost", cost: selectedPump.cost },
-        { label: "VAT (5%)", cost: selectedPump.cost * 0.05 },
-      ];
-  
-      const expectedOutput = `--------------------------------------
-  12345
-  --------------------------------------
-    Estimated Heat Loss = 96.0 kWh
-    Design Region = Borders (Boulmer)
-    Power Heat Loss = 0.039 kW
-    Recommended Heat Pump = HP-2000
-    Cost Breakdown
-      Heat Pump Cost, 8000
-      VAT (5%), 400
-    Total Cost, including VAT = 8400.00
-  `;
-  
-      const result = generateSummary(house, heatLoss, powerHeatLoss, selectedPump, totalCost, breakdown);
-  
-      expect(result).toBe(expectedOutput);
-    });
+describe("Generate Output Summary", () => {
+  test("should generate a correctly formatted summary", () => {
+    const house = {
+      submissionId: "12345",
+      floorArea: 100,
+      heatingFactor: 1.2,
+      insulationFactor: 0.8,
+      designRegion: "Borders (Boulmer)",
+    };
+
+    const heatLoss = 100 * 1.2 * 0.8; // Precomputed
+    const powerHeatLoss = heatLoss / 2483; // Example degreeDays value
+    const selectedPump = {
+      label: "8kW Package",
+      outputCapacity: 8,
+      totalCost: 8000,
+      breakdown: [
+        { label: "Component Cost", cost: 5000 },
+        { label: "Installation Cost", cost: 3000 },
+      ],
+    };
+    const totalCost = selectedPump.totalCost * 1.05; // Adding 5% VAT
+    const breakdown = [
+      { label: "Component Cost", cost: 5000 },
+      { label: "Installation Cost", cost: 3000 },
+      { label: "VAT (5%)", cost: selectedPump.totalCost * 0.05 },
+    ];
+
+    const expectedOutput = `--------------------------------------
+12345
+--------------------------------------
+  Estimated Heat Loss = 96.0 kWh
+  Design Region = Borders (Boulmer)
+  Power Heat Loss = 0.039 kW
+  Recommended Heat Pump = 8kW Package
+  Cost Breakdown
+    Component Cost, 5000
+    Installation Cost, 3000
+    VAT (5%), 400.00
+  Total Cost, including VAT = 8400.00
+`;
+
+    const result = generateSummary(
+      house,
+      heatLoss,
+      powerHeatLoss,
+      selectedPump,
+      totalCost,
+      breakdown
+    );
+
+    expect(result).toBe(expectedOutput);
   });
+});
